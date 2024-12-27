@@ -1,4 +1,4 @@
-# Project Name
+# Rocket Backend
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)  
 [![Rust Version](https://img.shields.io/badge/rustc-1.81+-blue.svg)](https://www.rust-lang.org)
