@@ -3,8 +3,7 @@
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)  
 [![Rust Version](https://img.shields.io/badge/rustc-1.81+-blue.svg)](https://www.rust-lang.org)
 
-A brief description of your project, explaining its purpose and key features.
-
+This is the backend for an app that handles the scheduling of containers in order to efficiently create all receipts daily for scheduled loads. These can be downloaded on the 'Todays Schedule' page and will write directly into a WMS database. It also keeps track of trailers carrying parts that are destined for possibly multiple different locations. It handles authentication, and role permissions. There are several CSV tasks incorporated to bulk analyze inventory and create a mass upload CSV for all the parts provided to us by the supplier. It parses the dimensions and classifies thestacks, pallet sizes, and plant codes accordingly.
 ---
 
 ## Table of Contents
