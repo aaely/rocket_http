@@ -51,11 +51,7 @@ Prerequisites
    ```
 2. Run the following command to start the docker container, sudo may need to be used to start:
    
-   docker run -d \
-    --name neo4j-container \
-    -p 7474:7474 -p 7687:7687 \
-    -e NEO4J_AUTH=neo4j/Asdf123$ \
-    neo4j:latest
+   docker run -d --name neo4j-container -p 7474:7474 -p 7687:7687 -e NEO4J_AUTH=neo4j/Asdf123$ neo4j:latest
 
 
 ## Usage
