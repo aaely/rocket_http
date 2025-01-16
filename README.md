@@ -12,7 +12,7 @@ This is the backend for an app that handles the scheduling of containers in orde
 - [Neo4j](#neo4j)
 - [Usage](#usage)
 - [Configuration](#configuration)
-- [Front End](#frontend)
+- [Front End](#front-end)
 
 ---
 
