@@ -13,7 +13,7 @@ pub async fn login(login_request: Json<LoginRequest>, state: &State<AppState>) -
     let graph = &state.graph;
 
     let query = query("
-        USE trucks MATCH (u:User {name: $username}) RETURN u
+        MATCH (u:User {name: $username}) RETURN u
     ").param("username", login_request.username.clone());
 
     let mut result = match graph.execute(query).await {
@@ -90,7 +90,7 @@ pub async fn register(user: Json<LoginRequest>, state: &State<AppState>) -> Resu
 
     println!("{} {}", user.username.clone(), hashed_password);
 
-    let query = query(" USE trucks CREATE (u:User {name: $username, password: $password, role: 'read'})")
+    let query = query("CREATE (u:User {name: $username, password: $password, role: 'read'})")
         .param("username", user.username.clone())
         .param("password", hashed_password);
 

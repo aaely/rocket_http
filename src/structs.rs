@@ -14,6 +14,11 @@ pub struct LoginRequest {
 }
 
 #[derive(Deserialize)]
+pub struct LoadCountRequest {
+    pub prefix: String,
+}
+
+#[derive(Deserialize)]
 pub struct TodaysTrucksRequest {
     pub date: String,
 }
@@ -93,6 +98,29 @@ pub struct RefreshRequest {
     pub refresh_token: String,
 }
 
+#[derive(Serialize)]
+pub struct Count {
+    pub item: String,
+    pub location: String,
+    pub actual: u32,
+    pub expected: u32,
+    pub actual_lp_count: u32,
+    pub expected_lp_count: u32,
+    pub comment: String,
+    pub date: String,
+}
+
+#[derive(Serialize)]
+pub struct CountSummary {
+    pub part_number: String,
+    pub num_locations: u32,
+    pub actual: u32,
+    pub expected: u32,
+    pub actual_lp_count: u32,
+    pub expected_lp_count: u32,
+    pub date: String,
+}
+
 #[derive(Debug, Clone, Deserialize, Serialize)]
 pub struct IncomingMessage {
     pub r#type: String,
@@ -151,6 +179,23 @@ pub struct Schedule {
     pub LastFreeDate: String,
     pub LoadStatus: String,
     pub RequestDate: String,
+}
+
+#[derive(Serialize, Deserialize, Debug, Clone, Default)]
+pub struct Shipment {
+    pub ScheduleDate: String,
+    pub ScheduleTime: String,
+    pub ArrivalTime: String,
+    pub DepartTime: String,
+    pub Dock: String,
+    pub Door: String,
+    pub LoadId: String,
+    pub LoadNum: String,
+    pub Status: String,
+    pub Picker: String,
+    pub PickStartTime: String,
+    pub VerifiedBy: String,
+    pub TrailerNum: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]

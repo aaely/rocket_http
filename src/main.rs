@@ -55,13 +55,13 @@ async fn main() {
 
     rocket::custom(
         rocket::Config {
-            address: "192.168.4.102".parse().expect("Invalid IP address"),
+            address: "127.0.0.1".parse().expect("Invalid IP address"),
             port: 8000,
             ..rocket::Config::default()
         }
     )
         .attach(cors)
-        .mount("/", routes![todays_trucks, date_range_trucks, set_arrival_time, set_door, hot_trailer, set_schedule, get_load_info, trailers, ws_handler, refresh_token, login, schedule_trailer, register])
+        .mount("/", routes![todays_trucks, get_load_count, date_range_trucks, set_arrival_time, set_door, hot_trailer, set_schedule, get_load_info, trailers, ws_handler, refresh_token, login, schedule_trailer, register])
         .manage(state)
         .launch()
         .await

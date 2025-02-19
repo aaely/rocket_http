@@ -5,9 +5,37 @@ use rocket::{get, post, serde::json::Json, State};
 use neo4rs::{query, Node};
 
 
+#[post("/api/get_load_count", format = "json", data = "<load_count_request>")]
+pub async fn get_load_count(load_count_request: Json<LoadCountRequest>, state: &State<AppState>) -> Result<Json<u32>, Json<&'static str>> {
+    
+    let graph = &state.graph;
+
+    let query = query("
+        MATCH (s:Shipment)
+        WHERE s.LoadId CONTAINS $prefix
+        return COUNT(s.LoadId) as LoadCount
+    ").param("prefix", load_count_request.prefix.clone());
+
+    match graph.execute(query).await {
+        Ok(mut result) => {
+            let mut cnt: u32 = 0;
+            while let Ok(Some(record)) = result.next().await {
+                let count: u32 = record.get("LoadCount").unwrap_or(0);
+                cnt = count;
+            }
+            Ok(Json(cnt))
+        },
+        Err(e) => {
+            println!("Failed to run query: {:?}", e);
+            Err(Json("Internal Server Error"))
+        }
+    }
+}
+
+
 #[post("/api/get_load_info", format = "json", data = "<load_info_request>")]
 pub async fn get_load_info(load_info_request: Json<LoadInfoRequest>, state: &State<AppState>, _user: AuthenticatedUser, role: Role) -> Result<Json<Vec<SidParts>>, Json<&'static str>> {
-    if role.0 != "read" && role.0 != "write" {
+    if role.0 != "read" && role.0 != "write" && role.0 != "admin"  {
         return Err(Json("Forbidden"));
     }
 
@@ -15,7 +43,7 @@ pub async fn get_load_info(load_info_request: Json<LoadInfoRequest>, state: &Sta
     let param = &load_info_request.param;
 
     let query = query("
-        USE trucks MATCH (trailer:Trailer {id: $param})-[:HAS_SID]->(sid:SID)-[:HAS_PART]->(part:Part)
+        MATCH (trailer:Trailer {id: $param})-[:HAS_SID]->(sid:SID)-[:HAS_PART]->(part:Part)
         RETURN sid, COLLECT({partNumber: part.number, quantity: part.quantity}) AS parts
     ").param("param", param.clone());
 
@@ -55,7 +83,7 @@ pub async fn get_load_info(load_info_request: Json<LoadInfoRequest>, state: &Sta
 
 #[post("/api/trailers", format = "json", data = "<date_request>")]
 pub async fn trailers(date_request: Json<SidsRequest>, state: &State<AppState>, _user: AuthenticatedUser, role: Role) -> Result<Json<Vec<Sids>>, Json<&'static str>> {
-    if role.0 != "read" && role.0 != "write" {
+    if role.0 != "read" && role.0 != "write" && role.0 != "admin" {
         return Err(Json("Forbidden"));
     }
 
@@ -63,7 +91,7 @@ pub async fn trailers(date_request: Json<SidsRequest>, state: &State<AppState>, 
     let date = &date_request.date;
 
     let query = query("
-        USE trucks MATCH (trailer:Trailer)-[:HAS_SCHEDULE]->(s:Schedule {ScheduleDate: $date})
+        MATCH (trailer:Trailer)-[:HAS_SCHEDULE]->(s:Schedule {ScheduleDate: $date})
         MATCH (trailer)-[:HAS_SID]->(sid:SID)-[:HAS_PART]->(part:Part)
         RETURN trailer.id AS TrailerID, sid.id AS sid, sid.ciscoID AS cisco, part.number AS partNumber, part.quantity AS quantity
     ").param("date", date.clone());
@@ -107,14 +135,13 @@ pub async fn trailers(date_request: Json<SidsRequest>, state: &State<AppState>, 
 
 #[get("/api/schedule_trailer")]
 pub async fn schedule_trailer(state: &State<AppState>, _user: AuthenticatedUser, role: Role) -> Result<Json<Vec<Trailer>>, Json<&'static str>> {
-    if role.0 != "write" && role.0 != "read" {
+    if role.0 != "write" && role.0 != "read" && role.0 != "admin" {
         return Err(Json("Forbidden"));
     }
     
     let graph = &state.graph;
 
     let query = query("
-        USE trucks 
         MATCH (trailer:Trailer)-[:HAS_SCHEDULE]->(s:Schedule)
         WITH trailer, s
         MATCH (trailer)-[:HAS_CISCO]->(cisco:Cisco)
@@ -174,14 +201,14 @@ pub async fn todays_trucks(
     _user: AuthenticatedUser,
     role: Role,
 ) -> Result<Json<Vec<Trailer>>, Json<&'static str>> {
-    if role.0 != "read" && role.0 != "write" {
+    if role.0 != "read" && role.0 != "write" && role.0 != "admin" {
         return Err(Json("Forbidden"));
     }
 
     let graph = &state.graph;
 
     let query = query("
-        USE trucks MATCH (trailer:Trailer)-[:HAS_SCHEDULE]->(s:Schedule)
+        MATCH (trailer:Trailer)-[:HAS_SCHEDULE]->(s:Schedule)
         WHERE s.ScheduleDate = $date
         WITH trailer, s
         MATCH (trailer)-[:HAS_CISCO]->(cisco:Cisco)
@@ -242,14 +269,14 @@ pub async fn date_range_trucks(
     _user: AuthenticatedUser,
     role: Role,
 ) -> Result<Json<Vec<Trailer>>, Json<&'static str>> {
-    if role.0 != "read" && role.0 != "write" {
+    if role.0 != "read" && role.0 != "write" && role.0 != "admin" {
         return Err(Json("Forbidden"));
     }
 
     let graph = &state.graph;
 
     let query = query("
-        USE trucks MATCH (trailer:Trailer)-[:HAS_SCHEDULE]->(s:Schedule)
+        MATCH (trailer:Trailer)-[:HAS_SCHEDULE]->(s:Schedule)
         WHERE s.ScheduleDate >= $date1 and s.ScheduleDate <= $date2
         WITH trailer, s
         MATCH (trailer)-[:HAS_CISCO]->(cisco:Cisco)
@@ -293,6 +320,58 @@ pub async fn date_range_trucks(
                 };
 
                 data.push(trailer);
+            }
+            Ok(Json(data))
+        },
+        Err(e) => {
+            println!("Failed to run query: {:?}", e);
+            Err(Json("Internal Server Error"))
+        }
+    }
+}
+
+#[post("/api/get_raw_counts", format = "json", data = "<count_request>")]
+async fn get_counts(count_request: Json<DateRangeTruckRequest>, state: &State<AppState>, _user: AuthenticatedUser, role: Role) -> Result<Json<Vec<Count>>, Json<&'static str>> {
+    if role.0 != "read" && role.0 != "write" && role.0 != "admin" {
+        return Err(Json("Forbidden"));
+    }
+
+    let graph = &state.graph;
+
+    let query = query("
+        MATCH (c:Count)
+        WHERE c.Date >= $date1 and c.Date <= $date2
+        RETURN c
+    ").param("date1", count_request.date1.clone())
+    .param("date2", count_request.date2.clone());
+
+    match graph.execute(query).await {
+        Ok(mut result) => {
+            let mut data: Vec<Count> = Vec::new();
+            while let Ok(Some(record)) = result.next().await {
+                
+                let count_node: Node = record.get("c").unwrap();
+                let location: String = count_node.get("Location").unwrap_or("".to_string());
+                let item: String = count_node.get("Item").unwrap_or("".to_string());
+                let actual: u32 = count_node.get("Actual").unwrap_or(0);
+                let expected: u32 = count_node.get("Expected").unwrap_or(0);
+                let actual_lp_count = count_node.get("ActualLP").unwrap_or(0);
+                let expected_lp_count = count_node.get("ExpectedLP").unwrap_or(0);
+                let date: String = count_node.get("Date").unwrap_or("".to_string());
+                let comment: String = count_node.get("Comment").unwrap_or("".to_string());
+
+                let next = Count {
+                    location,
+                    item,
+                    actual,
+                    expected,
+                    actual_lp_count,
+                    expected_lp_count,
+                    date,
+                    comment,
+                };
+
+                data.push(next);
             }
             Ok(Json(data))
         },
