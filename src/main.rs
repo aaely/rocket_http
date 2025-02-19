@@ -61,7 +61,7 @@ async fn main() {
         }
     )
         .attach(cors)
-        .mount("/", routes![todays_trucks, get_load_count, date_range_trucks, set_arrival_time, set_door, hot_trailer, set_schedule, get_load_info, trailers, ws_handler, refresh_token, login, schedule_trailer, register])
+        .mount("/", routes![new_shipment, set_shipment_arrival_time, set_shipment_departure_time, set_shipment_pick_start, get_counts, todays_trucks, get_load_count, date_range_trucks, set_arrival_time, set_door, hot_trailer, set_schedule, get_load_info, trailers, ws_handler, refresh_token, login, schedule_trailer, register])
         .manage(state)
         .launch()
         .await

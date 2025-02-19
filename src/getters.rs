@@ -164,6 +164,11 @@ pub async fn schedule_trailer(state: &State<AppState>, _user: AuthenticatedUser,
                 let last_free_date: String = schedule_node.get("LastFreeDate").unwrap_or("".to_string());
                 let load_status: String = schedule_node.get("LoadStatus").unwrap();
                 let request_date: String = schedule_node.get("RequestDate").unwrap();
+                let carrier_claim: String = schedule_node.get("ClaimComments").unwrap();
+                let has_claim: bool = schedule_node.get("HasClaim").unwrap();
+                let is_stat6: bool = schedule_node.get("IsStat6").unwrap();
+                let seal: String = schedule_node.get("Seal").unwrap();
+                let is_multi: bool = schedule_node.get("IsMulti").unwrap_or(false);
                 let cisco_ids: Vec<String> = record.get("CiscoIDs").unwrap();
 
                 let trailer = Trailer {
@@ -179,6 +184,11 @@ pub async fn schedule_trailer(state: &State<AppState>, _user: AuthenticatedUser,
                         LastFreeDate: last_free_date,
                         LoadStatus: load_status,
                         RequestDate: request_date,
+                        ClaimComments: carrier_claim,
+                        HasClaim: has_claim,
+                        Seal: seal,
+                        IsStat6: is_stat6,
+                        IsMulti: is_multi,
                     },
                     CiscoIDs: cisco_ids,
                 };
@@ -231,6 +241,11 @@ pub async fn todays_trucks(
                 let last_free_date: String = schedule_node.get("LastFreeDate").unwrap();
                 let load_status: String = schedule_node.get("LoadStatus").unwrap();
                 let request_date: String = schedule_node.get("RequestDate").unwrap();
+                let carrier_claim: String = schedule_node.get("ClaimComments").unwrap();
+                let has_claim: bool = schedule_node.get("HasClaim").unwrap();
+                let is_stat6: bool = schedule_node.get("IsStat6").unwrap();
+                let seal: String = schedule_node.get("Seal").unwrap();
+                let is_multi: bool = schedule_node.get("IsMulti").unwrap_or(false);
                 let cisco_ids: Vec<String> = record.get("CiscoIDs").unwrap();
 
                 let trailer = Trailer {
@@ -246,6 +261,11 @@ pub async fn todays_trucks(
                         LastFreeDate: last_free_date,
                         LoadStatus: load_status,
                         RequestDate: request_date,
+                        ClaimComments: carrier_claim,
+                        HasClaim: has_claim,
+                        IsStat6: is_stat6,
+                        IsMulti: is_multi,
+                        Seal: seal,
                     },
                     CiscoIDs: cisco_ids,
                 };
@@ -300,6 +320,11 @@ pub async fn date_range_trucks(
                 let last_free_date: String = schedule_node.get("LastFreeDate").unwrap();
                 let load_status: String = schedule_node.get("LoadStatus").unwrap();
                 let request_date: String = schedule_node.get("RequestDate").unwrap();
+                let carrier_claim: String = schedule_node.get("ClaimComments").unwrap();
+                let has_claim: bool = schedule_node.get("HasClaim").unwrap();
+                let is_stat6: bool = schedule_node.get("IsStat6").unwrap();
+                let seal: String = schedule_node.get("Seal").unwrap();
+                let is_multi: bool = schedule_node.get("IsMulti").unwrap_or(false);
                 let cisco_ids: Vec<String> = record.get("CiscoIDs").unwrap();
 
                 let trailer = Trailer {
@@ -315,6 +340,11 @@ pub async fn date_range_trucks(
                         LastFreeDate: last_free_date,
                         LoadStatus: load_status,
                         RequestDate: request_date,
+                        ClaimComments: carrier_claim,
+                        HasClaim: has_claim,
+                        IsStat6: is_stat6,
+                        IsMulti: is_multi,
+                        Seal: seal,
                     },
                     CiscoIDs: cisco_ids,
                 };
@@ -331,7 +361,7 @@ pub async fn date_range_trucks(
 }
 
 #[post("/api/get_raw_counts", format = "json", data = "<count_request>")]
-async fn get_counts(count_request: Json<DateRangeTruckRequest>, state: &State<AppState>, _user: AuthenticatedUser, role: Role) -> Result<Json<Vec<Count>>, Json<&'static str>> {
+pub async fn get_counts(count_request: Json<DateRangeTruckRequest>, state: &State<AppState>, _user: AuthenticatedUser, role: Role) -> Result<Json<Vec<Count>>, Json<&'static str>> {
     if role.0 != "read" && role.0 != "write" && role.0 != "admin" {
         return Err(Json("Forbidden"));
     }

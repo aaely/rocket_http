@@ -179,6 +179,11 @@ pub struct Schedule {
     pub LastFreeDate: String,
     pub LoadStatus: String,
     pub RequestDate: String,
+    pub Seal: String,
+    pub IsMulti: bool,
+    pub IsStat6: bool,
+    pub ClaimComments: String,
+    pub HasClaim: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -196,6 +201,19 @@ pub struct Shipment {
     pub PickStartTime: String,
     pub VerifiedBy: String,
     pub TrailerNum: String,
+}
+
+#[derive(Deserialize)]
+pub struct ShipmentArrivalTimeRequest {
+    pub ArrivalTime: String,
+    pub LoadId: String,
+}
+
+#[derive(Deserialize)]
+pub struct PickStartRequest {
+    pub StartTime: String,
+    pub LoadId: String,
+    pub Picker: String,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
