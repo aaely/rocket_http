@@ -26,16 +26,19 @@ pub async fn set_schedule(
             s.ScheduleTime = $ScheduleTime,
             s.LastFreeDate = $LastFreeDate,
             s.ContactEmail = $ContactEmail,
-            s.DoorNumber = $Door
+            s.DoorNumber = $Door,
+            s.Seal = $Seal
         RETURN trailer.id as TrailerID, s
     ")
     .param("TrailerID", schedule_request.TrailerID.clone())
+    .param("ClaimComments", schedule_request.ClaimComments.clone())
     .param("ScheduleDate", schedule_request.ScheduleDate.clone())
     .param("RequestDate", schedule_request.RequestDate.clone())
     .param("CarrierCode", schedule_request.CarrierCode.clone())
     .param("ScheduleTime", schedule_request.ScheduleTime.clone())
     .param("LastFreeDate", schedule_request.LastFreeDate.clone())
     .param("ContactEmail", schedule_request.ContactEmail.clone())
+    .param("Seal", schedule_request.Seal.clone())
     .param("Door", schedule_request.Door.clone());
 
     match graph.execute(query).await {
@@ -128,6 +131,72 @@ pub async fn new_shipment(
     .param("LoadNum", new_shipment.LoadNum.clone())
     .param("TrailerNum", new_shipment.TrailerNum.clone())
     .param("Door", new_shipment.Door.clone());
+
+    match graph.execute(query).await {
+        Ok(mut result) => {
+            if let Ok(Some(record)) = result.next().await {
+
+                let shipment_node: Node = record.get("s").unwrap();
+                let schedule_date: String = shipment_node.get("ScheduleDate").unwrap_or("".to_string());
+                let schedule_time: String = shipment_node.get("ScheduleTime").unwrap_or("".to_string());
+                let arrival_time: String = shipment_node.get("ArrivalTime").unwrap_or("".to_string());
+                let depart_time: String = shipment_node.get("DepartTime").unwrap_or("".to_string());
+                let dock: String = shipment_node.get("Dock").unwrap_or("".to_string());
+                let door: String = shipment_node.get("Door").unwrap_or("".to_string());
+                let load_id: String = shipment_node.get("LoadId").unwrap_or("".to_string());
+                let load_num: String = shipment_node.get("LoadNum").unwrap_or("".to_string());
+                let status: String = shipment_node.get("Status").unwrap_or("".to_string());
+                let picker: String = shipment_node.get("Picker").unwrap_or("".to_string());
+                let pick_start_time: String = shipment_node.get("PickStartTime").unwrap_or("".to_string());
+                let verified_by: String = shipment_node.get("VerifiedBy").unwrap_or("".to_string());
+                let trailer_num: String = shipment_node.get("TrailerNum").unwrap_or("".to_string());
+                let shipment = Shipment {
+                        ScheduleDate: schedule_date,
+                        ScheduleTime: schedule_time,
+                        ArrivalTime: arrival_time,
+                        DepartTime: depart_time,
+                        Dock: dock,	
+                        Door: door,
+                        LoadId: load_id,
+                        LoadNum: load_num,
+                        Status: status,
+                        Picker: picker,
+                        PickStartTime: pick_start_time,
+                        VerifiedBy: verified_by,
+                        TrailerNum: trailer_num,
+                    };
+                    Ok(Json(shipment))
+            } else {
+                Err(Json("No record found"))
+            }
+        },
+        Err(e) => {
+            println!("Failed to run query: {:?}", e);
+            Err(Json("Internal Server Error"))
+        }
+    }
+}
+
+#[post("/api/shipment_door", format = "json", data = "<shipment_door>")]
+pub async fn shipment_door(
+    shipment_door: Json<ShipmentDoor>,
+    state: &State<AppState>,
+    _user: AuthenticatedUser,
+    role: Role,
+) -> Result<Json<Shipment>, Json<&'static str>> {
+    if role.0 != "write" || role.0 != "admin" {
+        return Err(Json("Forbidden"));
+    }
+
+    let graph = &state.graph;
+
+    let query = query("
+        MERGE (s:Shipment {LoadId: $LoadId})
+        SET s.Door = $Door
+        RETURN s
+    ")
+    .param("LoadId", shipment_door.LoadId.clone())
+    .param("Door", shipment_door.Door.clone());
 
     match graph.execute(query).await {
         Ok(mut result) => {
@@ -418,18 +487,12 @@ pub async fn set_shipment_arrival_time(
     state: &State<AppState>,
     _user: AuthenticatedUser,
     role: Role,
-) -> Result<Json<Vec<Shipment>>, Json<&'static str>> {
+) -> Result<Json<Shipment>, Json<&'static str>> {
     if role.0 != "write" || role.0 != "admin" {
         return Err(Json("Forbidden"));
     }
 
     let graph = &state.graph;
-
-    let load_status = if set_shipment_arrival_time.ArrivalTime.is_empty() {
-        "in-transit".to_string()
-    } else {
-        "arrived".to_string()
-    };
 
     let query = query("
         MATCH (s:Shipment {LoadId: $LoadId})
@@ -441,8 +504,7 @@ pub async fn set_shipment_arrival_time(
 
     match graph.execute(query).await {
         Ok(mut result) => {
-            let mut data: Vec<Shipment> = Vec::new();
-            while let Ok(Some(record)) = result.next().await {
+            if let Ok(Some(record)) = result.next().await {
 
                 let shipment_node: Node = record.get("s").unwrap();
                 let schedule_date: String = shipment_node.get("ScheduleDate").unwrap_or("".to_string());
@@ -455,10 +517,10 @@ pub async fn set_shipment_arrival_time(
                 let load_num: String = shipment_node.get("LoadNum").unwrap_or("".to_string());
                 let status: String = shipment_node.get("Status").unwrap_or("".to_string());
                 let picker: String = shipment_node.get("Picker").unwrap_or("".to_string());
-                let trailer_num: String = shipment_node.get("TrailerNum").unwrap_or("".to_string());
                 let pick_start_time: String = shipment_node.get("PickStartTime").unwrap_or("".to_string());
                 let verified_by: String = shipment_node.get("VerifiedBy").unwrap_or("".to_string());
-                let shipment_data = Shipment {
+                let trailer_num: String = shipment_node.get("TrailerNum").unwrap_or("".to_string());
+                let shipment = Shipment {
                         ScheduleDate: schedule_date,
                         ScheduleTime: schedule_time,
                         ArrivalTime: arrival_time,
@@ -469,15 +531,14 @@ pub async fn set_shipment_arrival_time(
                         LoadNum: load_num,
                         Status: status,
                         Picker: picker,
-                        TrailerNum: trailer_num,
                         PickStartTime: pick_start_time,
                         VerifiedBy: verified_by,
-                };
-
-                data.push(shipment_data);
-            }
-
-            Ok(Json(data))
+                        TrailerNum: trailer_num,
+                    };
+                    Ok(Json(shipment))
+            } else {
+                Err(Json("No record found"))
+            }          
         },
         Err(e) => {
             println!("Failed to run query: {:?}", e);
@@ -492,7 +553,7 @@ pub async fn set_shipment_departure_time(
     state: &State<AppState>,
     _user: AuthenticatedUser,
     role: Role,
-) -> Result<Json<Vec<Shipment>>, Json<&'static str>> {
+) -> Result<Json<Shipment>, Json<&'static str>> {
     if role.0 != "write" || role.0 != "admin" {
         return Err(Json("Forbidden"));
     }
@@ -511,7 +572,7 @@ pub async fn set_shipment_departure_time(
     match graph.execute(query).await {
         Ok(mut result) => {
             let mut data: Vec<Shipment> = Vec::new();
-            while let Ok(Some(record)) = result.next().await {
+            if let Ok(Some(record)) = result.next().await {
 
                 let shipment_node: Node = record.get("s").unwrap();
                 let schedule_date: String = shipment_node.get("ScheduleDate").unwrap_or("".to_string());
@@ -524,10 +585,10 @@ pub async fn set_shipment_departure_time(
                 let load_num: String = shipment_node.get("LoadNum").unwrap_or("".to_string());
                 let status: String = shipment_node.get("Status").unwrap_or("".to_string());
                 let picker: String = shipment_node.get("Picker").unwrap_or("".to_string());
-                let trailer_num: String = shipment_node.get("TrailerNum").unwrap_or("".to_string());
                 let pick_start_time: String = shipment_node.get("PickStartTime").unwrap_or("".to_string());
                 let verified_by: String = shipment_node.get("VerifiedBy").unwrap_or("".to_string());
-                let shipment_data = Shipment {
+                let trailer_num: String = shipment_node.get("TrailerNum").unwrap_or("".to_string());
+                let shipment = Shipment {
                         ScheduleDate: schedule_date,
                         ScheduleTime: schedule_time,
                         ArrivalTime: arrival_time,
@@ -538,15 +599,14 @@ pub async fn set_shipment_departure_time(
                         LoadNum: load_num,
                         Status: status,
                         Picker: picker,
-                        TrailerNum: trailer_num,
                         PickStartTime: pick_start_time,
                         VerifiedBy: verified_by,
-                };
-
-                data.push(shipment_data);
+                        TrailerNum: trailer_num,
+                    };
+                    Ok(Json(shipment))
+            } else {
+                Err(Json("No record found"))
             }
-
-            Ok(Json(data))
         },
         Err(e) => {
             println!("Failed to run query: {:?}", e);
@@ -561,7 +621,7 @@ pub async fn set_shipment_pick_start(
     state: &State<AppState>,
     _user: AuthenticatedUser,
     role: Role,
-) -> Result<Json<Vec<Shipment>>, Json<&'static str>> {
+) -> Result<Json<Shipment>, Json<&'static str>> {
     if role.0 != "write" || role.0 != "admin" {
         return Err(Json("Forbidden"));
     }
@@ -582,7 +642,7 @@ pub async fn set_shipment_pick_start(
     match graph.execute(query).await {
         Ok(mut result) => {
             let mut data: Vec<Shipment> = Vec::new();
-            while let Ok(Some(record)) = result.next().await {
+            if let Ok(Some(record)) = result.next().await {
 
                 let shipment_node: Node = record.get("s").unwrap();
                 let schedule_date: String = shipment_node.get("ScheduleDate").unwrap_or("".to_string());
@@ -595,10 +655,10 @@ pub async fn set_shipment_pick_start(
                 let load_num: String = shipment_node.get("LoadNum").unwrap_or("".to_string());
                 let status: String = shipment_node.get("Status").unwrap_or("".to_string());
                 let picker: String = shipment_node.get("Picker").unwrap_or("".to_string());
-                let trailer_num: String = shipment_node.get("TrailerNum").unwrap_or("".to_string());
                 let pick_start_time: String = shipment_node.get("PickStartTime").unwrap_or("".to_string());
                 let verified_by: String = shipment_node.get("VerifiedBy").unwrap_or("".to_string());
-                let shipment_data = Shipment {
+                let trailer_num: String = shipment_node.get("TrailerNum").unwrap_or("".to_string());
+                let shipment = Shipment {
                         ScheduleDate: schedule_date,
                         ScheduleTime: schedule_time,
                         ArrivalTime: arrival_time,
@@ -609,15 +669,80 @@ pub async fn set_shipment_pick_start(
                         LoadNum: load_num,
                         Status: status,
                         Picker: picker,
-                        TrailerNum: trailer_num,
                         PickStartTime: pick_start_time,
                         VerifiedBy: verified_by,
-                };
-
-                data.push(shipment_data);
+                        TrailerNum: trailer_num,
+                    };
+                    Ok(Json(shipment))
+            } else {
+                Err(Json("No record found"))
             }
+        },
+        Err(e) => {
+            println!("Failed to run query: {:?}", e);
+            Err(Json("Internal Server Error"))
+        }
+    }
+}
 
-            Ok(Json(data))
+#[post("/api/shipment_status_update", format = "json", data = "<shipment_status_update>")]
+pub async fn shipment_status_update(
+    shipment_status_update: Json<ShipmentStatusRequest>,
+    state: &State<AppState>,
+    _user: AuthenticatedUser,
+    role: Role,
+) -> Result<Json<Shipment>, Json<&'static str>> {
+    if role.0 != "write" || role.0 != "admin" {
+        return Err(Json("Forbidden"));
+    }
+
+    let graph = &state.graph;
+
+    let query = query("
+        MATCH (s:Shipment {LoadId: $LoadId})
+        SET s.Status = $Status
+        RETURN s
+    ")
+    .param("TrailerID", shipment_status_update.LoadId.clone())
+    .param("Status", shipment_status_update.Status.clone());
+
+    match graph.execute(query).await {
+        Ok(mut result) => {
+            if let Ok(Some(record)) = result.next().await {
+
+                let shipment_node: Node = record.get("s").unwrap();
+                let schedule_date: String = shipment_node.get("ScheduleDate").unwrap_or("".to_string());
+                let schedule_time: String = shipment_node.get("ScheduleTime").unwrap_or("".to_string());
+                let arrival_time: String = shipment_node.get("ArrivalTime").unwrap_or("".to_string());
+                let depart_time: String = shipment_node.get("DepartTime").unwrap_or("".to_string());
+                let dock: String = shipment_node.get("Dock").unwrap_or("".to_string());
+                let door: String = shipment_node.get("Door").unwrap_or("".to_string());
+                let load_id: String = shipment_node.get("LoadId").unwrap_or("".to_string());
+                let load_num: String = shipment_node.get("LoadNum").unwrap_or("".to_string());
+                let status: String = shipment_node.get("Status").unwrap_or("".to_string());
+                let picker: String = shipment_node.get("Picker").unwrap_or("".to_string());
+                let pick_start_time: String = shipment_node.get("PickStartTime").unwrap_or("".to_string());
+                let verified_by: String = shipment_node.get("VerifiedBy").unwrap_or("".to_string());
+                let trailer_num: String = shipment_node.get("TrailerNum").unwrap_or("".to_string());
+                let shipment = Shipment {
+                        ScheduleDate: schedule_date,
+                        ScheduleTime: schedule_time,
+                        ArrivalTime: arrival_time,
+                        DepartTime: depart_time,
+                        Dock: dock,	
+                        Door: door,
+                        LoadId: load_id,
+                        LoadNum: load_num,
+                        Status: status,
+                        Picker: picker,
+                        PickStartTime: pick_start_time,
+                        VerifiedBy: verified_by,
+                        TrailerNum: trailer_num,
+                    };
+                    Ok(Json(shipment))
+            } else {
+                Err(Json("No record found"))
+            }
         },
         Err(e) => {
             println!("Failed to run query: {:?}", e);

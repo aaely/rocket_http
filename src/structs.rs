@@ -142,6 +142,14 @@ pub struct SetScheduleRequest {
     pub LastFreeDate: String,
     pub ContactEmail: String,
     pub Door: String,
+    pub ClaimComments: String,
+    pub Seal: String,
+}
+
+#[derive(Deserialize)]
+pub struct ShipmentStatusRequest {
+    pub LoadId: String,
+    pub Status: String,
 }
 
 #[derive(Deserialize, Debug)]
@@ -207,6 +215,12 @@ pub struct Shipment {
 pub struct ShipmentArrivalTimeRequest {
     pub ArrivalTime: String,
     pub LoadId: String,
+}
+
+#[derive(Deserialize)]
+pub struct ShipmentDoor {
+    pub LoadId: String,
+    pub Door: String,
 }
 
 #[derive(Deserialize)]
