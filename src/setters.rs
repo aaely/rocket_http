@@ -11,7 +11,7 @@ pub async fn set_schedule(
     _user: AuthenticatedUser,
     role: Role,
 ) -> Result<Json<Vec<TrailerSchedule>>, Json<&'static str>> {
-    if role.0 != "write" || role.0 != "admin" {
+    if role.0 != "write" && role.0 != "admin" {
         return Err(Json("Forbidden"));
     }
 
@@ -102,7 +102,7 @@ pub async fn new_shipment(
     _user: AuthenticatedUser,
     role: Role,
 ) -> Result<Json<Shipment>, Json<&'static str>> {
-    if role.0 != "write" || role.0 != "admin" {
+    if role.0 != "write" && role.0 != "admin" {
         return Err(Json("Forbidden"));
     }
 
@@ -116,12 +116,13 @@ pub async fn new_shipment(
             s.DepartTime = '',
             s.Dock = $Dock,
             s.Door = $Door,
-            s.Status = 'Not Started',
+            s.Status = 'NOT STARTED',
             s.LoadId = $LoadId,
             s.Picker = '',
             s.PickStartTime = '',
             s.VerifiedBy = '',
-            s.TrailerNum = $TrailerNum
+            s.LoadNum = $LoadNum,
+            s.TrailerNum = ''
         RETURN s
     ")
     .param("ScheduleDate", new_shipment.ScheduleDate.clone())
@@ -129,7 +130,6 @@ pub async fn new_shipment(
     .param("Dock", new_shipment.Dock.clone())
     .param("LoadId", new_shipment.LoadId.clone())
     .param("LoadNum", new_shipment.LoadNum.clone())
-    .param("TrailerNum", new_shipment.TrailerNum.clone())
     .param("Door", new_shipment.Door.clone());
 
     match graph.execute(query).await {
@@ -149,6 +149,7 @@ pub async fn new_shipment(
                 let picker: String = shipment_node.get("Picker").unwrap_or("".to_string());
                 let pick_start_time: String = shipment_node.get("PickStartTime").unwrap_or("".to_string());
                 let verified_by: String = shipment_node.get("VerifiedBy").unwrap_or("".to_string());
+                let pick_finish_time: String = shipment_node.get("PickFinishTime").unwrap_or("".to_string());
                 let trailer_num: String = shipment_node.get("TrailerNum").unwrap_or("".to_string());
                 let shipment = Shipment {
                         ScheduleDate: schedule_date,
@@ -162,6 +163,7 @@ pub async fn new_shipment(
                         Status: status,
                         Picker: picker,
                         PickStartTime: pick_start_time,
+                        PickFinishTime: pick_finish_time,
                         VerifiedBy: verified_by,
                         TrailerNum: trailer_num,
                     };
@@ -184,7 +186,7 @@ pub async fn shipment_door(
     _user: AuthenticatedUser,
     role: Role,
 ) -> Result<Json<Shipment>, Json<&'static str>> {
-    if role.0 != "write" || role.0 != "admin" {
+    if role.0 != "write" && role.0 != "admin" {
         return Err(Json("Forbidden"));
     }
 
@@ -215,6 +217,7 @@ pub async fn shipment_door(
                 let picker: String = shipment_node.get("Picker").unwrap_or("".to_string());
                 let pick_start_time: String = shipment_node.get("PickStartTime").unwrap_or("".to_string());
                 let verified_by: String = shipment_node.get("VerifiedBy").unwrap_or("".to_string());
+                let pick_finish_time: String = shipment_node.get("PickFinishTime").unwrap_or("".to_string());
                 let trailer_num: String = shipment_node.get("TrailerNum").unwrap_or("".to_string());
                 let shipment = Shipment {
                         ScheduleDate: schedule_date,
@@ -228,6 +231,7 @@ pub async fn shipment_door(
                         Status: status,
                         Picker: picker,
                         PickStartTime: pick_start_time,
+                        PickFinishTime: pick_finish_time,
                         VerifiedBy: verified_by,
                         TrailerNum: trailer_num,
                     };
@@ -250,7 +254,7 @@ pub async fn hot_trailer(
     _user: AuthenticatedUser,
     role: Role,
 ) -> Result<Json<Vec<TrailerSchedule>>, Json<&'static str>> {
-    if role.0 != "write" || role.0 != "admin" {
+    if role.0 != "write" && role.0 != "admin" {
         return Err(Json("Forbidden"));
     }
 
@@ -325,7 +329,7 @@ pub async fn set_door(
     _user: AuthenticatedUser,
     role: Role,
 ) -> Result<Json<Vec<TrailerSchedule>>, Json<&'static str>> {
-    if role.0 != "write" || role.0 != "admin" {
+    if role.0 != "write" && role.0 != "admin" {
         return Err(Json("Forbidden"));
     }
 
@@ -402,7 +406,7 @@ pub async fn set_arrival_time(
     _user: AuthenticatedUser,
     role: Role,
 ) -> Result<Json<Vec<TrailerSchedule>>, Json<&'static str>> {
-    if role.0 != "write" || role.0 != "admin" {
+    if role.0 != "write" && role.0 != "admin" {
         return Err(Json("Forbidden"));
     }
 
@@ -481,14 +485,14 @@ pub async fn set_arrival_time(
     }
 }
 
-#[post("/api/set_shipment_arrival_time", format = "json", data = "<set_shipment_arrival_time>")]
-pub async fn set_shipment_arrival_time(
+#[post("/api/set_shipment_trailer", format = "json", data = "<set_shipment_arrival_time>")]
+pub async fn set_shipment_trailer(
     set_shipment_arrival_time: Json<ShipmentArrivalTimeRequest>,
     state: &State<AppState>,
     _user: AuthenticatedUser,
     role: Role,
 ) -> Result<Json<Shipment>, Json<&'static str>> {
-    if role.0 != "write" || role.0 != "admin" {
+    if role.0 != "write" && role.0 != "admin" {
         return Err(Json("Forbidden"));
     }
 
@@ -496,10 +500,12 @@ pub async fn set_shipment_arrival_time(
 
     let query = query("
         MATCH (s:Shipment {LoadId: $LoadId})
-        SET s.ArrivalTime = $ArrivalTime
+        SET s.ArrivalTime = $ArrivalTime,
+            s.TrailerNum = $TrailerNum
         RETURN s
     ")
-    .param("TrailerID", set_shipment_arrival_time.LoadId.clone())
+    .param("LoadId", set_shipment_arrival_time.LoadId.clone())
+    .param("TrailerNum", set_shipment_arrival_time.TrailerNum.clone())
     .param("ArrivalTime", set_shipment_arrival_time.ArrivalTime.clone());
 
     match graph.execute(query).await {
@@ -519,6 +525,7 @@ pub async fn set_shipment_arrival_time(
                 let picker: String = shipment_node.get("Picker").unwrap_or("".to_string());
                 let pick_start_time: String = shipment_node.get("PickStartTime").unwrap_or("".to_string());
                 let verified_by: String = shipment_node.get("VerifiedBy").unwrap_or("".to_string());
+                let pick_finish_time: String = shipment_node.get("PickFinishTime").unwrap_or("".to_string());
                 let trailer_num: String = shipment_node.get("TrailerNum").unwrap_or("".to_string());
                 let shipment = Shipment {
                         ScheduleDate: schedule_date,
@@ -532,6 +539,7 @@ pub async fn set_shipment_arrival_time(
                         Status: status,
                         Picker: picker,
                         PickStartTime: pick_start_time,
+                        PickFinishTime: pick_finish_time,
                         VerifiedBy: verified_by,
                         TrailerNum: trailer_num,
                     };
@@ -549,12 +557,12 @@ pub async fn set_shipment_arrival_time(
 
 #[post("/api/set_shipment_departureTime", format = "json", data = "<set_shipment_departure_time>")]
 pub async fn set_shipment_departure_time(
-    set_shipment_departure_time: Json<ShipmentArrivalTimeRequest>,
+    set_shipment_departure_time: Json<ShipmentDepartTimeRequest>,
     state: &State<AppState>,
     _user: AuthenticatedUser,
     role: Role,
 ) -> Result<Json<Shipment>, Json<&'static str>> {
-    if role.0 != "write" || role.0 != "admin" {
+    if role.0 != "write" && role.0 != "admin" {
         return Err(Json("Forbidden"));
     }
 
@@ -562,12 +570,12 @@ pub async fn set_shipment_departure_time(
 
     let query = query("
         MATCH (s:Shipment {LoadId: $LoadId})
-        SET s.DepartTime = $ArrivalTime,
-            s.Status = 'Complete'
+        SET s.DepartTime = $DepartTime,
+            s.Status = 'COMPLETE'
         RETURN s
     ")
-    .param("TrailerID", set_shipment_departure_time.LoadId.clone())
-    .param("ArrivalTime", set_shipment_departure_time.ArrivalTime.clone());
+    .param("LoadId", set_shipment_departure_time.LoadId.clone())
+    .param("DepartTime", set_shipment_departure_time.DepartTime.clone());
 
     match graph.execute(query).await {
         Ok(mut result) => {
@@ -587,6 +595,7 @@ pub async fn set_shipment_departure_time(
                 let picker: String = shipment_node.get("Picker").unwrap_or("".to_string());
                 let pick_start_time: String = shipment_node.get("PickStartTime").unwrap_or("".to_string());
                 let verified_by: String = shipment_node.get("VerifiedBy").unwrap_or("".to_string());
+                let pick_finish_time: String = shipment_node.get("PickFinishTime").unwrap_or("".to_string());
                 let trailer_num: String = shipment_node.get("TrailerNum").unwrap_or("".to_string());
                 let shipment = Shipment {
                         ScheduleDate: schedule_date,
@@ -600,6 +609,7 @@ pub async fn set_shipment_departure_time(
                         Status: status,
                         Picker: picker,
                         PickStartTime: pick_start_time,
+                        PickFinishTime: pick_finish_time,
                         VerifiedBy: verified_by,
                         TrailerNum: trailer_num,
                     };
@@ -622,7 +632,7 @@ pub async fn set_shipment_pick_start(
     _user: AuthenticatedUser,
     role: Role,
 ) -> Result<Json<Shipment>, Json<&'static str>> {
-    if role.0 != "write" || role.0 != "admin" {
+    if role.0 != "write" && role.0 != "admin" {
         return Err(Json("Forbidden"));
     }
 
@@ -630,13 +640,13 @@ pub async fn set_shipment_pick_start(
 
     let query = query("
         MATCH (s:Shipment {LoadId: $LoadId})
-        SET s.DepartTime = $ArrivalTime,
-            s.Status = 'Picking',
-            s.Picker = $Picker
+        SET s.Status = 'PICKING',
+            s.Picker = $Picker,
+            s.PickStartTime = $PickStartTime
         RETURN s
     ")
-    .param("TrailerID", set_shipment_pick_start.LoadId.clone())
-    .param("ArrivalTime", set_shipment_pick_start.StartTime.clone())
+    .param("LoadId", set_shipment_pick_start.LoadId.clone())
+    .param("PickStartTime", set_shipment_pick_start.StartTime.clone())
     .param("Picker", set_shipment_pick_start.Picker.clone());
 
     match graph.execute(query).await {
@@ -656,6 +666,7 @@ pub async fn set_shipment_pick_start(
                 let status: String = shipment_node.get("Status").unwrap_or("".to_string());
                 let picker: String = shipment_node.get("Picker").unwrap_or("".to_string());
                 let pick_start_time: String = shipment_node.get("PickStartTime").unwrap_or("".to_string());
+                let pick_finish_time: String = shipment_node.get("PickFinishTime").unwrap_or("".to_string());
                 let verified_by: String = shipment_node.get("VerifiedBy").unwrap_or("".to_string());
                 let trailer_num: String = shipment_node.get("TrailerNum").unwrap_or("".to_string());
                 let shipment = Shipment {
@@ -670,6 +681,7 @@ pub async fn set_shipment_pick_start(
                         Status: status,
                         Picker: picker,
                         PickStartTime: pick_start_time,
+                        PickFinishTime: pick_finish_time,
                         VerifiedBy: verified_by,
                         TrailerNum: trailer_num,
                     };
@@ -685,14 +697,14 @@ pub async fn set_shipment_pick_start(
     }
 }
 
-#[post("/api/shipment_status_update", format = "json", data = "<shipment_status_update>")]
-pub async fn shipment_status_update(
-    shipment_status_update: Json<ShipmentStatusRequest>,
+#[post("/api/shipment_pick_finish", format = "json", data = "<shipment_pick_finish>")]
+pub async fn shipment_pick_finish(
+    shipment_pick_finish: Json<ShipmentPickFinishRequest>,
     state: &State<AppState>,
     _user: AuthenticatedUser,
     role: Role,
 ) -> Result<Json<Shipment>, Json<&'static str>> {
-    if role.0 != "write" || role.0 != "admin" {
+    if role.0 != "write" && role.0 != "admin" {
         return Err(Json("Forbidden"));
     }
 
@@ -700,11 +712,12 @@ pub async fn shipment_status_update(
 
     let query = query("
         MATCH (s:Shipment {LoadId: $LoadId})
-        SET s.Status = $Status
+        SET s.Status = 'VERIFICATION',
+            s.PickFinishTime = $FinishTime
         RETURN s
     ")
-    .param("TrailerID", shipment_status_update.LoadId.clone())
-    .param("Status", shipment_status_update.Status.clone());
+    .param("LoadId", shipment_pick_finish.LoadId.clone())
+    .param("FinishTime", shipment_pick_finish.FinishTime.clone());
 
     match graph.execute(query).await {
         Ok(mut result) => {
@@ -723,6 +736,7 @@ pub async fn shipment_status_update(
                 let picker: String = shipment_node.get("Picker").unwrap_or("".to_string());
                 let pick_start_time: String = shipment_node.get("PickStartTime").unwrap_or("".to_string());
                 let verified_by: String = shipment_node.get("VerifiedBy").unwrap_or("".to_string());
+                let pick_finish_time: String = shipment_node.get("PickFinishTime").unwrap_or("".to_string());
                 let trailer_num: String = shipment_node.get("TrailerNum").unwrap_or("".to_string());
                 let shipment = Shipment {
                         ScheduleDate: schedule_date,
@@ -736,6 +750,143 @@ pub async fn shipment_status_update(
                         Status: status,
                         Picker: picker,
                         PickStartTime: pick_start_time,
+                        PickFinishTime: pick_finish_time,
+                        VerifiedBy: verified_by,
+                        TrailerNum: trailer_num,
+                    };
+                    Ok(Json(shipment))
+            } else {
+                Err(Json("No record found"))
+            }
+        },
+        Err(e) => {
+            println!("Failed to run query: {:?}", e);
+            Err(Json("Internal Server Error"))
+        }
+    }
+}
+
+#[post("/api/shipment_verification", format = "json", data = "<shipment_verification>")]
+pub async fn shipment_verification(
+    shipment_verification: Json<VerifiedByRequest>,
+    state: &State<AppState>,
+    _user: AuthenticatedUser,
+    role: Role,
+) -> Result<Json<Shipment>, Json<&'static str>> {
+    if role.0 != "write" && role.0 != "admin" {
+        return Err(Json("Forbidden"));
+    }
+
+    let graph = &state.graph;
+
+    let query = query("
+        MATCH (s:Shipment {LoadId: $LoadId})
+        SET s.Status = 'READY TO LOAD',
+            s.VerifiedBy = $VerifiedBy
+        RETURN s
+    ")
+    .param("LoadId", shipment_verification.LoadId.clone())
+    .param("VerifiedBy", shipment_verification.VerifiedBy.clone());
+
+    match graph.execute(query).await {
+        Ok(mut result) => {
+            if let Ok(Some(record)) = result.next().await {
+
+                let shipment_node: Node = record.get("s").unwrap();
+                let schedule_date: String = shipment_node.get("ScheduleDate").unwrap_or("".to_string());
+                let schedule_time: String = shipment_node.get("ScheduleTime").unwrap_or("".to_string());
+                let arrival_time: String = shipment_node.get("ArrivalTime").unwrap_or("".to_string());
+                let depart_time: String = shipment_node.get("DepartTime").unwrap_or("".to_string());
+                let dock: String = shipment_node.get("Dock").unwrap_or("".to_string());
+                let door: String = shipment_node.get("Door").unwrap_or("".to_string());
+                let load_id: String = shipment_node.get("LoadId").unwrap_or("".to_string());
+                let load_num: String = shipment_node.get("LoadNum").unwrap_or("".to_string());
+                let status: String = shipment_node.get("Status").unwrap_or("".to_string());
+                let picker: String = shipment_node.get("Picker").unwrap_or("".to_string());
+                let pick_start_time: String = shipment_node.get("PickStartTime").unwrap_or("".to_string());
+                let verified_by: String = shipment_node.get("VerifiedBy").unwrap_or("".to_string());
+                let pick_finish_time: String = shipment_node.get("PickFinishTime").unwrap_or("".to_string());
+                let trailer_num: String = shipment_node.get("TrailerNum").unwrap_or("".to_string());
+                let shipment = Shipment {
+                        ScheduleDate: schedule_date,
+                        ScheduleTime: schedule_time,
+                        ArrivalTime: arrival_time,
+                        DepartTime: depart_time,
+                        Dock: dock,	
+                        Door: door,
+                        LoadId: load_id,
+                        LoadNum: load_num,
+                        Status: status,
+                        Picker: picker,
+                        PickStartTime: pick_start_time,
+                        PickFinishTime: pick_finish_time,
+                        VerifiedBy: verified_by,
+                        TrailerNum: trailer_num,
+                    };
+                    Ok(Json(shipment))
+            } else {
+                Err(Json("No record found"))
+            }
+        },
+        Err(e) => {
+            println!("Failed to run query: {:?}", e);
+            Err(Json("Internal Server Error"))
+        }
+    }
+}
+
+#[post("/api/shipment_begin_loading", format = "json", data = "<shipment_begin_loading>")]
+pub async fn shipment_begin_loading(
+    shipment_begin_loading: Json<ShipmentBeginLoading>,
+    state: &State<AppState>,
+    _user: AuthenticatedUser,
+    role: Role,
+) -> Result<Json<Shipment>, Json<&'static str>> {
+    if role.0 != "write" && role.0 != "admin" {
+        return Err(Json("Forbidden"));
+    }
+
+    let graph = &state.graph;
+
+    let query = query("
+        MATCH (s:Shipment {LoadId: $LoadId})
+        SET s.Status = 'LOADING'
+        RETURN s
+    ")
+    .param("LoadId", shipment_begin_loading.LoadId.clone());
+
+    match graph.execute(query).await {
+        Ok(mut result) => {
+            if let Ok(Some(record)) = result.next().await {
+
+                let shipment_node: Node = record.get("s").unwrap();
+                let schedule_date: String = shipment_node.get("ScheduleDate").unwrap_or("".to_string());
+                let schedule_time: String = shipment_node.get("ScheduleTime").unwrap_or("".to_string());
+                let arrival_time: String = shipment_node.get("ArrivalTime").unwrap_or("".to_string());
+                let depart_time: String = shipment_node.get("DepartTime").unwrap_or("".to_string());
+                let dock: String = shipment_node.get("Dock").unwrap_or("".to_string());
+                let door: String = shipment_node.get("Door").unwrap_or("".to_string());
+                let load_id: String = shipment_node.get("LoadId").unwrap_or("".to_string());
+                let load_num: String = shipment_node.get("LoadNum").unwrap_or("".to_string());
+                let status: String = shipment_node.get("Status").unwrap_or("".to_string());
+                let picker: String = shipment_node.get("Picker").unwrap_or("".to_string());
+                let pick_start_time: String = shipment_node.get("PickStartTime").unwrap_or("".to_string());
+                let pick_finish_time: String = shipment_node.get("PickFinishTime").unwrap_or("".to_string());
+                let verified_by: String = shipment_node.get("VerifiedBy").unwrap_or("".to_string());
+                let trailer_num: String = shipment_node.get("TrailerNum").unwrap_or("".to_string());
+                let shipment = Shipment {
+                        ScheduleDate: schedule_date,
+                        ScheduleTime: schedule_time,
+                        ArrivalTime: arrival_time,
+                        DepartTime: depart_time,
+                        Dock: dock,	
+                        Door: door,
+                        LoadId: load_id,
+                        LoadNum: load_num,
+                        Status: status,
+                        Picker: picker,
+                        PickStartTime: pick_start_time,
+                        PickFinishTime: pick_finish_time,
                         VerifiedBy: verified_by,
                         TrailerNum: trailer_num,
                     };

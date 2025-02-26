@@ -73,6 +73,30 @@ async fn handle_connection(
                                     "trailer_arrived" => {
                                         println!("Handling trailer_arrived: {:?}", incoming_message.data);
                                     }
+                                    "shipment_trailer_arrival" => {
+                                        println!("Handling set_shipment_trailer: {:?}", incoming_message.data);
+                                    }
+                                    "set_shipment_door" => {
+                                        println!("Handling set_shipment_door: {:?}", incoming_message.data);
+                                    }
+                                    "start_shipment_pick" => {
+                                        println!("Handling start_shipment_pick: {:?}", incoming_message.data);
+                                    }
+                                    "finish_shipment_pick" => {
+                                        println!("Handling finish_shipment_pick: {:?}", incoming_message.data);
+                                    }
+                                    "new_shipment" => {
+                                        println!("Handling new_shipment: {:?}", incoming_message.data);
+                                    }
+                                    "shipment_depart" => {
+                                        println!("Handling shipment_depart: {:?}", incoming_message.data);
+                                    }
+                                    "shipment_start_loading" => {
+                                        println!("Handling shipment_start_loading: {:?}", incoming_message.data);
+                                    }
+                                    "verified_by" => {
+                                        println!("Handling verified_by: {:?}", incoming_message.data);
+                                    }
                                     _ => {
                                         println!("Unknown event type: {:?}", incoming_message.r#type);
                                     }
@@ -107,6 +131,9 @@ async fn handle_connection(
                 }
             }
         }
+        let mut ws_list = ws_list_for_incoming.lock().await;
+        ws_list.remove(&peer_addr);
+        println!("Client {} removed. Total clients: {}", peer_addr, ws_list.len());
     });
 
     // Clone ws_list for the outgoing messages task

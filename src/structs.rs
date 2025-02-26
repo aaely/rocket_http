@@ -146,12 +146,6 @@ pub struct SetScheduleRequest {
     pub Seal: String,
 }
 
-#[derive(Deserialize)]
-pub struct ShipmentStatusRequest {
-    pub LoadId: String,
-    pub Status: String,
-}
-
 #[derive(Deserialize, Debug)]
 pub struct SetArrivalTimeRequest {
     pub TrailerID: String,
@@ -207,20 +201,45 @@ pub struct Shipment {
     pub Status: String,
     pub Picker: String,
     pub PickStartTime: String,
+    pub PickFinishTime: String,
     pub VerifiedBy: String,
     pub TrailerNum: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Debug, Clone)]
 pub struct ShipmentArrivalTimeRequest {
     pub ArrivalTime: String,
     pub LoadId: String,
+    pub TrailerNum: String,
+}
+
+#[derive(Deserialize)]
+pub struct ShipmentDepartTimeRequest {
+    pub DepartTime: String,
+    pub LoadId: String,
+}
+
+#[derive(Deserialize)]
+pub struct VerifiedByRequest {
+    pub VerifiedBy: String,
+    pub LoadId: String,
+}
+
+#[derive(Deserialize)]
+pub struct ShipmentPickFinishRequest {
+    pub LoadId: String,
+    pub FinishTime: String,
 }
 
 #[derive(Deserialize)]
 pub struct ShipmentDoor {
     pub LoadId: String,
     pub Door: String,
+}
+
+#[derive(Deserialize)]
+pub struct ShipmentBeginLoading {
+    pub LoadId: String,
 }
 
 #[derive(Deserialize)]

@@ -435,7 +435,7 @@ pub async fn get_shipments(
     _user: AuthenticatedUser,
     role: Role,
 ) -> Result<Json<Vec<Shipment>>, Json<&'static str>> {
-    if role.0 != "write" || role.0 != "admin" {
+    if role.0 != "write" && role.0 != "admin" {
         return Err(Json("Forbidden"));
     }
 
@@ -466,6 +466,7 @@ pub async fn get_shipments(
                 let picker: String = shipment_node.get("Picker").unwrap_or("".to_string());
                 let trailer_num: String = shipment_node.get("TrailerNum").unwrap_or("".to_string());
                 let pick_start_time: String = shipment_node.get("PickStartTime").unwrap_or("".to_string());
+                let pick_finish_time: String = shipment_node.get("PickFinishTime").unwrap_or("".to_string());
                 let verified_by: String = shipment_node.get("VerifiedBy").unwrap_or("".to_string());
                 let shipment_data = Shipment {
                         ScheduleDate: schedule_date,
@@ -480,6 +481,7 @@ pub async fn get_shipments(
                         Picker: picker,
                         TrailerNum: trailer_num,
                         PickStartTime: pick_start_time,
+                        PickFinishTime: pick_finish_time,
                         VerifiedBy: verified_by,
                 };
 
