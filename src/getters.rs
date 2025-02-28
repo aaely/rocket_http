@@ -295,6 +295,79 @@ pub async fn todays_trucks(
     }
 }
 
+#[post("/api/get_todays_shipments", format = "json", data = "<get_todays_shipments>") ]
+pub async fn get_todays_shipments(
+    get_todays_shipments: Json<TodaysTrucksRequest>,
+    state: &State<AppState>,
+    _user: AuthenticatedUser,
+    role: Role,
+) -> Result<Json<Vec<Shipment>>, Json<&'static str>> {
+    if role.0 != "read" && role.0 != "write" && role.0 != "admin" {
+        return Err(Json("Forbidden"));
+    }
+
+    let graph = &state.graph;
+
+    let query = query("
+        MATCH (s:Shipment)
+        WHERE s.ScheduleDate = $date OR (s.ScheduleDate < $date AND s.Status <> 'COMPLETE')
+        RETURN s
+        ORDER BY s.ScheduleDate DESC
+    ").param("date", get_todays_shipments.date.clone());
+
+    match graph.execute(query).await {
+        Ok(mut result) => {
+            let mut data: Vec<Shipment> = Vec::new();
+            while let Ok(Some(record)) = result.next().await {
+
+                let shipment_node: Node = record.get("s").unwrap();
+                let schedule_date: String = shipment_node.get("ScheduleDate").unwrap_or("".to_string());
+                let schedule_time: String = shipment_node.get("ScheduleTime").unwrap_or("".to_string());
+                let arrival_time: String = shipment_node.get("ArrivalTime").unwrap_or("".to_string());
+                let depart_time: String = shipment_node.get("DepartTime").unwrap_or("".to_string());
+                let dock: String = shipment_node.get("Dock").unwrap_or("".to_string());
+                let door: String = shipment_node.get("Door").unwrap_or("".to_string());
+                let load_id: String = shipment_node.get("LoadId").unwrap_or("".to_string());
+                let load_num: String = shipment_node.get("LoadNum").unwrap_or("".to_string());
+                let status: String = shipment_node.get("Status").unwrap_or("".to_string());
+                let picker: String = shipment_node.get("Picker").unwrap_or("".to_string());
+                let trailer_num: String = shipment_node.get("TrailerNum").unwrap_or("".to_string());
+                let pick_start_time: String = shipment_node.get("PickStartTime").unwrap_or("".to_string());
+                let pick_finish_time: String = shipment_node.get("PickFinishTime").unwrap_or("".to_string());
+                let is_hold: bool = shipment_node.get("IsHold").unwrap_or(false);
+                let verified_by: String = shipment_node.get("VerifiedBy").unwrap_or("".to_string());
+                let seal: String = shipment_node.get("Seal").unwrap_or("".to_string());
+                let shipment_data = Shipment {
+                        ScheduleDate: schedule_date,
+                        ScheduleTime: schedule_time,
+                        ArrivalTime: arrival_time,
+                        DepartTime: depart_time,
+                        Dock: dock,	
+                        Door: door,
+                        LoadId: load_id,
+                        LoadNum: load_num,
+                        Status: status,
+                        Picker: picker,
+                        TrailerNum: trailer_num,
+                        PickStartTime: pick_start_time,
+                        PickFinishTime: pick_finish_time,
+                        VerifiedBy: verified_by,
+                        IsHold: is_hold,
+                        Seal: seal,
+                };
+
+                data.push(shipment_data);
+            }
+
+            Ok(Json(data))
+        },
+        Err(e) => {
+            println!("Failed to run query: {:?}", e);
+            Err(Json("Internal Server Error"))
+        }
+    }
+}
+
 #[post("/api/trucks_date_range", format = "json", data = "<date_range_trucks_request>")]
 pub async fn date_range_trucks(
     date_range_trucks_request: Json<DateRangeTruckRequest>,
@@ -435,7 +508,7 @@ pub async fn get_shipments(
     _user: AuthenticatedUser,
     role: Role,
 ) -> Result<Json<Vec<Shipment>>, Json<&'static str>> {
-    if role.0 != "write" && role.0 != "admin" {
+    if role.0 != "read" && role.0 != "write" && role.0 != "admin" {
         return Err(Json("Forbidden"));
     }
 
@@ -467,7 +540,9 @@ pub async fn get_shipments(
                 let trailer_num: String = shipment_node.get("TrailerNum").unwrap_or("".to_string());
                 let pick_start_time: String = shipment_node.get("PickStartTime").unwrap_or("".to_string());
                 let pick_finish_time: String = shipment_node.get("PickFinishTime").unwrap_or("".to_string());
+                let is_hold: bool = shipment_node.get("IsHold").unwrap_or(false);
                 let verified_by: String = shipment_node.get("VerifiedBy").unwrap_or("".to_string());
+                let seal: String = shipment_node.get("Seal").unwrap_or("".to_string());
                 let shipment_data = Shipment {
                         ScheduleDate: schedule_date,
                         ScheduleTime: schedule_time,
@@ -483,6 +558,53 @@ pub async fn get_shipments(
                         PickStartTime: pick_start_time,
                         PickFinishTime: pick_finish_time,
                         VerifiedBy: verified_by,
+                        IsHold: is_hold,
+                        Seal: seal,
+                };
+
+                data.push(shipment_data);
+            }
+            Ok(Json(data))
+        },
+        Err(e) => {
+            println!("Failed to run query: {:?}", e);
+            Err(Json("Internal Server Error"))
+        }
+    }
+}
+
+#[post("/api/get_shipment_details", format = "json", data = "<get_shipment_details>") ]
+pub async fn get_shipment_details(
+    get_shipment_details: Json<ShipmentBeginLoading>,
+    state: &State<AppState>,
+    _user: AuthenticatedUser,
+    role: Role,
+) -> Result<Json<Vec<ShipmentLine>>, Json<&'static str>> {
+    if role.0 != "read" && role.0 != "write" && role.0 != "admin" {
+        return Err(Json("Forbidden"));
+    }
+
+    let graph = &state.graph;
+
+    let query = query("
+        MATCH (s:Shipment {LoadId: $LoadId})-[:HAS_LINE]->(sl:ShipmentLine)
+        RETURN sl
+    ").param("LoadId", get_shipment_details.LoadId.clone());
+
+    match graph.execute(query).await {
+        Ok(mut result) => {
+            let mut data: Vec<ShipmentLine> = Vec::new();
+            while let Ok(Some(record)) = result.next().await {
+
+                let shipment_node: Node = record.get("sl").unwrap();
+                let item: String = shipment_node.get("PartNumber").unwrap_or("".to_string());
+                let quantity: u32 = shipment_node.get("Quantity").unwrap_or(0);
+                let ip: String = shipment_node.get("Ip").unwrap_or("".to_string());
+                
+                let shipment_data = ShipmentLine {
+                        item,
+                        quantity,
+                        ip,
                 };
 
                 data.push(shipment_data);

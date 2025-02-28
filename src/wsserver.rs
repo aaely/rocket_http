@@ -94,6 +94,12 @@ async fn handle_connection(
                                     "shipment_start_loading" => {
                                         println!("Handling shipment_start_loading: {:?}", incoming_message.data);
                                     }
+                                    "delete_shipment" => {
+                                        println!("Handling delete_shipment: {:?}", incoming_message.data);
+                                    }
+                                    "shipment_hold" => {
+                                        println!("Handling shipment_hold: {:?}", incoming_message.data);
+                                    }
                                     "verified_by" => {
                                         println!("Handling verified_by: {:?}", incoming_message.data);
                                     }

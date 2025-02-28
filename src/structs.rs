@@ -110,6 +110,11 @@ pub struct Count {
     pub date: String,
 }
 
+#[derive(Deserialize)]
+pub struct DeleteShipmentRequest {
+    pub LoadId: String,
+}
+
 #[derive(Serialize)]
 pub struct CountSummary {
     pub part_number: String,
@@ -188,6 +193,19 @@ pub struct Schedule {
     pub HasClaim: bool,
 }
 
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+pub struct ShipmentLinesRequest {
+    pub LoadId: String,
+    pub Lines: Vec<ShipmentLine>
+}
+
+#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+pub struct ShipmentLine {
+    pub item: String,
+    pub quantity: u32,
+    pub ip: String,
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
 pub struct Shipment {
     pub ScheduleDate: String,
@@ -204,6 +222,8 @@ pub struct Shipment {
     pub PickFinishTime: String,
     pub VerifiedBy: String,
     pub TrailerNum: String,
+    pub IsHold: bool,
+    pub Seal: String,
 }
 
 #[derive(Deserialize, Debug, Clone)]
@@ -217,6 +237,7 @@ pub struct ShipmentArrivalTimeRequest {
 pub struct ShipmentDepartTimeRequest {
     pub DepartTime: String,
     pub LoadId: String,
+    pub Seal: String,
 }
 
 #[derive(Deserialize)]
